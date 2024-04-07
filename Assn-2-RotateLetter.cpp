@@ -1,10 +1,10 @@
 // Bryan Duong
 // Assn-2-RotateLetter.cpp
-// 4/9/24
 // This program uses an array of vertices of a triangle to produce a 
 // letter D that can be rotated through the mouse. Additionally,
 // it also produces two letters that can be rotated on both sides of
 // the screen.
+// 4/9/24
 
 #include <glad.h>
 #include <glfw3.h>
