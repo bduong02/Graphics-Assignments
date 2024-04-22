@@ -5,7 +5,7 @@
 // with movable lights. Additionally, it also writes
 // to file by saving the vertices/triangles as an OBJ-formatted
 // ASCII file.
-// 4/22/24
+// 4/23/24
 
 #include <glad.h>
 #include <GLFW/glfw3.h>
