@@ -1,9 +1,10 @@
 // Bryan Duong
 // 4-Assn-Texture3dLetter.cpp
-// This program produces a shaded image of the
-// letter D using 3D vertices, lighting and the functionality
-// from the Camera class. Additionally, it also allows
-// users to enable/disable the highlights.
+// This program produces a textured 
+// 3D letter D and improves the lighting
+// with movable lights. Additionally, it also writes
+// to file by saving the vertices/triangles as an OBJ-formatted
+// ASCII file.
 // 4/22/24
 
 #include <glad.h>
@@ -177,6 +178,7 @@ void Display() {
 	// test connectivity
 	UseDrawShader(view);
 	UseDrawShader(camera.fullview);
+	
 	// draw lights
 	for (int i = 0; i < nLights; i++)
 		Star(lights[i], 8, vec3(1, .8f, 0), vec3(0, 0, 1));
@@ -274,6 +276,7 @@ void KeyCallback(GLFWwindow* w, int key, int scancode, int action, int mods) {
 	}
 }
 
+// function to write to file
 void WriteObjFile(const char* filename)
 {
 	FILE* file = fopen(filename, "w");
