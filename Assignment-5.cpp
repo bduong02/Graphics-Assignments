@@ -1,6 +1,9 @@
 // Bryan Duong
 // Assignment-5.cpp
 // 4/30/24
+// This program reads in a OBJ file with
+// texture image and uses the keyboard
+// to toggle between the shading and highlighting.
 
 #include <glad.h>
 #include <GLFW/glfw3.h>
@@ -40,64 +43,52 @@ const int nLights = sizeof(lights)/sizeof(vec3);
 void *picked = NULL;	// if non-null: light or camera
 Mover mover;
 
+bool useFacetedNormal = true;
+float ambientValue = 0.1f;
+float diffuseValue = 0.5f;
+float specularValue = 0.8f;
+float shininessValue = 32.0f;
+
 // Shaders
 
 const char *vertexShader = R"(
 	#version 130
-	in vec3 point;
+	in vec3 vPoint;
 	in vec2 uv;
-	out vec3 vPoint;
+	in vec3 normal;
 	out vec2 vUv;
 	out vec3 vNormal;
 	uniform mat4 modelview, persp;
 	void main() {
-		//vPoint = (modelview*vec4(point, 1)).xyz;
 		gl_Position = persp * modelview * vec4(vPoint, 1);
 		vUv = uv;
-		// vNormal = normalize((modelview * vec4(normal, 0)).xyz); // Transform normal by modelview
-		vNormal = normalize(gl_NormalMatrix * gl_Normal);
+		vNormal = normalize((modelview * vec4(normal, 0)).xyz);
 	}
 )";
 
-/* const char* pixelShader = R"(
-	#version 130
-	in vec3 vPoint;
-	in vec2 vUv;
-	in vec3 vNormal;
-	out vec4 pColor;
-	uniform sampler2D textureImage;
-	uniform int nLights = 0;
-	uniform vec3 lights[20];
-	uniform float amb = .1, dif = .8, spc =.7;					// ambient, diffuse, specular
-	void main() {
-		vec3 N = normalize(vNormal); // Set normal to unit length
-        vec3 E = normalize(vPoint);
-		float d = 0, s = 0;
-		vec3 dx = dFdx(vPoint), dy = dFdy(vPoint);				// change in vPoint in horiz/vert directions
-		vec3 N = normalize(cross(dx, dy));						// unit-length facet normal
-		vec3 E = normalize(vPoint);								// eye vector
-		for (int i = 0; i < nLights; i++) {
-			vec3 L = normalize(lights[i]-vPoint);				// light vector
-			vec3 R = reflect(L, N);								// highlight vector
-			d += max(0, dot(N, L));								// one-sided diffuse
-			float h = max(0, dot(R, E));						// highlight term
-			s += pow(h, 100);									// specular term
-		}
-		float ads = clamp(amb+dif*d+spc*s, 0, 1);
-		pColor = vec4(ads*texture(textureImage, vUv).rgb, 1);
-	}
-)";*/
 const char* pixelShader = R"(
 	#version 130
 	in vec2 vUv; // Receive texture coordinates from vertex shader
 	in vec3 vNormal;
 	out vec4 pColor;
 	uniform sampler2D textureImage;
+	uniform bool useFacetedNormal;
+	uniform float ambientValue;
+    uniform float diffuseValue;
+    uniform float specularValue;
+    uniform float shininessValue;
+
 	void main() {
-		vec3 N = normalize(vNormal); // Set normal to unit length
+		vec3 N;
+		if (useFacetedNormal) {
+			N = normalize(vNormal); // Use normal from the vertex shader (faceted shading)
+		} else {
+			N = normalize(cross(dFdx(vPosition), dFdy(vPosition))); // Use normal from the rasterizer (smooth shading)
+		}
 		vec4 textColor = texture(textureImage, vUv); // Sample the texture using texture coordinates
 		pColor = textColor; // Set the fragment color to the sampled texture color
 	}
+
 )";
 
 // Display
@@ -124,7 +115,7 @@ void Display(GLFWwindow *w) {
 	glActiveTexture(GL_TEXTURE0+textureUnit);
 	SetUniform(program, "textureImage", textureUnit);
 	// render
-	int nVertices = sizeof(triangles)/sizeof(int);
+	int nVertices = triangles.size() * 3;
 	glDrawElements(GL_TRIANGLES, nVertices, GL_UNSIGNED_INT, triangles.data());
 	// annotation
 	glDisable(GL_DEPTH_TEST);
@@ -170,14 +161,6 @@ void MouseWheel(float spin) {
 
 // Initialization
 
-/*void SetUvs() {
-	vec3 min, max;
-	Bounds(points, nPoints, min, max);
-	vec3 dif(max-min);
-	for (int i = 0; i < nPoints; i++)
-		uvs[i] = vec2((points[i].x-min.x)/dif.x, (points[i].y-min.y)/dif.y);
-}*/
-
 void BufferVertices() {
 	// create GPU buffer, make it active
 	glGenBuffers(1, &vBuffer);
@@ -188,6 +171,7 @@ void BufferVertices() {
 	glBufferSubData(GL_ARRAY_BUFFER, 0, points.size() * sizeof(vec3), points.data());
 	glBufferSubData(GL_ARRAY_BUFFER, points.size() * sizeof(vec3), uvs.size() * sizeof(vec2), uvs.data());
 	glBufferSubData(GL_ARRAY_BUFFER, points.size() * sizeof(vec3) + uvs.size() * sizeof(vec2), normals.size() * sizeof(vec3), normals.data());
+
 }
 
 // Application
@@ -215,6 +199,39 @@ void WriteObjFile(const char *filename) {
 void Keyboard(int key, bool press, bool shift, bool control) {
 	if (press && key == 'S')
 		WriteObjFile("C:/Users/Duong/Graphics/Apps/Doughnut_OBJ.obj");
+	if (press && key == 'F') { // Toggle between faceted and smooth shading when the 'F' key is pressed
+		useFacetedNormal = !useFacetedNormal;
+		glUseProgram(program);
+		glUniform1i(glGetUniformLocation(program, "useFacetedNormal"), useFacetedNormal);
+	}
+
+	// Varying the pixel shader values of amb, dif, spc
+	if (press) {
+		switch (key) {
+		case GLFW_KEY_A:
+			ambientValue += 0.1f;
+			break;
+		case GLFW_KEY_D:
+			diffuseValue += 0.1f;
+			break;
+		case GLFW_KEY_S:
+			specularValue += 0.1f;
+			break;
+		case GLFW_KEY_E:
+			shininessValue += 10.0f;
+			break;
+		case GLFW_KEY_R:
+			shininessValue -= 10.0f;
+			if (shininessValue < 0.0f) shininessValue = 0.0f;
+			break;
+		}
+		// Update shader program with new values
+		glUseProgram(program);
+		glUniform1f(glGetUniformLocation(program, "ambientValue"), ambientValue);
+		glUniform1f(glGetUniformLocation(program, "diffuseValue"), diffuseValue);
+		glUniform1f(glGetUniformLocation(program, "specularValue"), specularValue);
+		glUniform1f(glGetUniformLocation(program, "shininessValue"), shininessValue);
+	}
 }
 
 void Resize(int width, int height) {
@@ -227,9 +244,8 @@ int main(int ac, char **av) {
 	GLFWwindow *w = InitGLFW(100, 100, winWidth, winHeight, "Textured Letter");
 	// init shader program, set GPU buffer, read texture image
 	program = LinkProgramViaCode(&vertexShader, &pixelShader);
-	//SetUvs();
-	Standardize(points.data(), points.size(), .8f);
-	//BufferVertices();
+	Standardize(points.data(), points.size(), .8f);   // fit points to +/- .8 space
+	BufferVertices();
 	textureName = ReadTexture(textFilename);
 	// callbacks
 	RegisterMouseMove(MouseMove);
