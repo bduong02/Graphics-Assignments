@@ -28,7 +28,7 @@ const int nPoints = sizeof(points)/sizeof(vec3);
 GLuint vBuffer = 0, program = 0;
 
 // texture image
-const char *texFilename = "C:/Assets/Images/Lily.jpg";
+const char *textFilename = "C:/Users/duong/Graphics/Apps/donutTextureImage.jpg";
 GLuint textureName = 0;
 int textureUnit = 0;
 
@@ -51,14 +51,15 @@ const char *vertexShader = R"(
 	out vec3 vNormal;
 	uniform mat4 modelview, persp;
 	void main() {
-		vPoint = (modelview*vec4(point, 1)).xyz;
-		gl_Position = persp*vec4(vPoint, 1);
+		//vPoint = (modelview*vec4(point, 1)).xyz;
+		gl_Position = persp * modelview * vec4(vPoint, 1);
 		vUv = uv;
-		vNormal = normalize((modelview * vec4(normal, 0)).xyz); // Transform normal by modelview
+		// vNormal = normalize((modelview * vec4(normal, 0)).xyz); // Transform normal by modelview
+		vNormal = normalize(gl_NormalMatrix * gl_Normal);
 	}
 )";
 
-const char *pixelShader = R"(
+/* const char* pixelShader = R"(
 	#version 130
 	in vec3 vPoint;
 	in vec2 vUv;
@@ -84,6 +85,18 @@ const char *pixelShader = R"(
 		}
 		float ads = clamp(amb+dif*d+spc*s, 0, 1);
 		pColor = vec4(ads*texture(textureImage, vUv).rgb, 1);
+	}
+)";*/
+const char* pixelShader = R"(
+	#version 130
+	in vec2 vUv; // Receive texture coordinates from vertex shader
+	in vec3 vNormal;
+	out vec4 pColor;
+	uniform sampler2D textureImage;
+	void main() {
+		vec3 N = normalize(vNormal); // Set normal to unit length
+		vec4 textColor = texture(textureImage, vUv); // Sample the texture using texture coordinates
+		pColor = textColor; // Set the fragment color to the sampled texture color
 	}
 )";
 
@@ -217,7 +230,7 @@ int main(int ac, char **av) {
 	//SetUvs();
 	Standardize(points.data(), points.size(), .8f);
 	//BufferVertices();
-	textureName = ReadTexture(texFilename);
+	textureName = ReadTexture(textFilename);
 	// callbacks
 	RegisterMouseMove(MouseMove);
 	RegisterMouseButton(MouseButton);
@@ -228,7 +241,7 @@ int main(int ac, char **av) {
 
 	if (!ReadAsciiObj("Doughnut_OBJ.obj", points, triangles, &normals, &uvs))
 	{
-		printf("can’t read %s\n", "Doughnut_OBJ.obj");
+		printf("canâ€™t read %s\n", "Doughnut_OBJ.obj");
 		return 1;
 	}
 	if (!normals.size())
